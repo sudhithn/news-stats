@@ -198,65 +198,69 @@ def main_dashboard(df):
         previous_date = selected_date - timedelta(days=1)
         previous_total, previous_sentiments = get_daily_stats(df, previous_date)
 
-        # Display metrics
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("Total Articles", safe_convert(current_total), safe_convert(current_total - previous_total))
-            st.markdown("<p class='metric-subtext' style='text-align: left'>From Previous Day</p>", unsafe_allow_html=True)
-        
-        with col2:
-            st.metric("Neutral Articles", safe_convert(current_sentiments.get('Neutral', 0)), 
-                      safe_convert(current_sentiments.get('Neutral', 0) - previous_sentiments.get('Neutral', 0)))
-            st.markdown("<p class='metric-subtext' style='text-align: left'>From Previous Day</p>", unsafe_allow_html=True)
-        
-        with col3:
-            st.metric("Positive Articles", safe_convert(current_sentiments.get('Positive', 0)), 
-                      safe_convert(current_sentiments.get('Positive', 0) - previous_sentiments.get('Positive', 0)))
-            st.markdown("<p class='metric-subtext' style='text-align: left'>From Previous Day</p>", unsafe_allow_html=True)
-        
-        with col4:
-            st.metric("Negative Articles", safe_convert(current_sentiments.get('Negative', 0)), 
-                      safe_convert(current_sentiments.get('Negative', 0) - previous_sentiments.get('Negative', 0)))
-            st.markdown("<p class='metric-subtext' style='text-align: left'>From Previous Day</p>", unsafe_allow_html=True)
-
-        # Display headlines
-        st.subheader(f"Headlines for {selected_date.strftime('%d-%b-%Y')}")
-        headlines = get_headlines(df, selected_date)
-
-        # Sort by Sentiment Label instead of Sentiment Score
-        sentiment_order = {'Positive': 2, 'Neutral': 1, 'Negative': 0}
-        headlines['Sentiment Order'] = headlines['Sentiment Label'].map(sentiment_order)
-        headlines = headlines.sort_values(by='Sentiment Order', ascending=False)
-        headlines = headlines.drop('Sentiment Order', axis=1)  # Remove the temporary column
-
-        headlines = headlines.reset_index(drop=True)
-        headlines.index = headlines.index + 1
-
-        # Create clickable links
-        headlines['URL Link'] = headlines['URL Link'].apply(lambda x: f'<a href="{x}" target="_blank">Read More</a>')
-
-        # Apply sentiment color styling
-        headlines['Sentiment Label'] = headlines['Sentiment Label'].apply(
-            lambda x: f'<span style="color: {"green" if x == "Positive" else "red" if x == "Negative" else "gray"}">{x}</span>'
-        )
-
-        # Display the styled table with pagination
-        if len(headlines) > 10:
-            show_all = st.checkbox("Show all headlines")
-            if show_all:
-                st.markdown(headlines.to_html(escape=False, index=True), unsafe_allow_html=True)
-            else:
-                st.markdown(headlines.head(10).to_html(escape=False, index=True), unsafe_allow_html=True)
+        if current_total == 0:
+            st.warning("No articles found for this selected date. Please select a different date.")
         else:
-            st.markdown(headlines.to_html(escape=False, index=True), unsafe_allow_html=True)
-        # Create and display sentiment chart
-        sentiment_chart = create_sentiment_chart(current_sentiments, previous_sentiments)
-        st.plotly_chart(sentiment_chart, use_container_width=True, config={'displayModeBar': False})
+            # Display metrics
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Total Articles", safe_convert(current_total), safe_convert(current_total - previous_total))
+                st.markdown("<p class='metric-subtext' style='text-align: left'>From Previous Day</p>", unsafe_allow_html=True)
+            
+            with col2:
+                st.metric("Neutral Articles", safe_convert(current_sentiments.get('Neutral', 0)), 
+                          safe_convert(current_sentiments.get('Neutral', 0) - previous_sentiments.get('Neutral', 0)))
+                st.markdown("<p class='metric-subtext' style='text-align: left'>From Previous Day</p>", unsafe_allow_html=True)
+            
+            with col3:
+                st.metric("Positive Articles", safe_convert(current_sentiments.get('Positive', 0)), 
+                          safe_convert(current_sentiments.get('Positive', 0) - previous_sentiments.get('Positive', 0)))
+                st.markdown("<p class='metric-subtext' style='text-align: left'>From Previous Day</p>", unsafe_allow_html=True)
+            
+            with col4:
+                st.metric("Negative Articles", safe_convert(current_sentiments.get('Negative', 0)), 
+                          safe_convert(current_sentiments.get('Negative', 0) - previous_sentiments.get('Negative', 0)))
+                st.markdown("<p class='metric-subtext' style='text-align: left'>From Previous Day</p>", unsafe_allow_html=True)
 
-        # Create and display portal chart
-        portal_chart = create_portal_chart(df, selected_date)
-        st.plotly_chart(portal_chart, use_container_width=True, config={'displayModeBar': False})
+            # Display headlines
+            st.subheader(f"Headlines for {selected_date.strftime('%d-%b-%Y')}")
+            headlines = get_headlines(df, selected_date)
+
+            # Sort by Sentiment Label instead of Sentiment Score
+            sentiment_order = {'Positive': 2, 'Neutral': 1, 'Negative': 0}
+            headlines['Sentiment Order'] = headlines['Sentiment Label'].map(sentiment_order)
+            headlines = headlines.sort_values(by='Sentiment Order', ascending=False)
+            headlines = headlines.drop('Sentiment Order', axis=1)  # Remove the temporary column
+
+            headlines = headlines.reset_index(drop=True)
+            headlines.index = headlines.index + 1
+
+            # Create clickable links
+            headlines['URL Link'] = headlines['URL Link'].apply(lambda x: f'<a href="{x}" target="_blank">Read More</a>')
+
+            # Apply sentiment color styling
+            headlines['Sentiment Label'] = headlines['Sentiment Label'].apply(
+                lambda x: f'<span style="color: {"green" if x == "Positive" else "red" if x == "Negative" else "gray"}">{x}</span>'
+            )
+
+            # Display the styled table with pagination
+            if len(headlines) > 10:
+                show_all = st.checkbox("Show all headlines")
+                if show_all:
+                    st.markdown(headlines.to_html(escape=False, index=True), unsafe_allow_html=True)
+                else:
+                    st.markdown(headlines.head(10).to_html(escape=False, index=True), unsafe_allow_html=True)
+            else:
+                st.markdown(headlines.to_html(escape=False, index=True), unsafe_allow_html=True)
+
+            # Create and display sentiment chart
+            sentiment_chart = create_sentiment_chart(current_sentiments, previous_sentiments)
+            st.plotly_chart(sentiment_chart, use_container_width=True, config={'displayModeBar': False})
+
+            # Create and display portal chart
+            portal_chart = create_portal_chart(df, selected_date)
+            st.plotly_chart(portal_chart, use_container_width=True, config={'displayModeBar': False})
 
     # Adding new charts
     col1, col2 = st.columns(2)
@@ -265,11 +269,6 @@ def main_dashboard(df):
         # Daily Articles Chart
         daily_articles_chart = create_daily_articles_chart(df)
         st.plotly_chart(daily_articles_chart, use_container_width=True, config={'displayModeBar': False})
-
-    # with col2:
-    #     # Sentiment by Portal Chart (previously Sentiment by Topic)
-    #     sentiment_by_portal_chart = create_sentiment_by_topic_chart(df)
-    #     st.plotly_chart(sentiment_by_portal_chart, use_container_width=True, config={'displayModeBar': False})
 
     # Portal Statistics Chart
     portal_stats_chart = create_portal_statistics_chart(df)
@@ -281,12 +280,6 @@ def create_daily_articles_chart(df):
     daily_counts = df.groupby('Published Date').size().reset_index(name='count')
     fig = px.line(daily_counts, x='Published Date', y='count', title='Daily Article Count')
     return fig
-
-# def create_sentiment_by_topic_chart(df):
-#     # Assuming you have a 'Topic' column in your dataframe
-#     topic_sentiment = df.groupby('Topic')['Sentiment Label'].value_counts(normalize=True).unstack()
-#     fig = px.bar(topic_sentiment, title='Sentiment Distribution by Topic', barmode='stack')
-#     return fig
 
 def create_portal_statistics_chart(df):
     portal_counts = df['Portal'].value_counts()
