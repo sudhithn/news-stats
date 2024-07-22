@@ -16,6 +16,20 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# Custom CSS for styling (including hide Streamlit branding)
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .reportview-container .main footer {visibility: hidden;}
+    #stConnectionStatus {visibility: hidden;}
+    .stDeployButton {display: none;}
+    
+    /* ... rest of your existing CSS ... */
+    </style>
+    """, unsafe_allow_html=True)
+
 # Custom CSS for styling
 st.markdown("""
     <style>
@@ -368,23 +382,23 @@ def compare_dashboard(df):
     )
     st.plotly_chart(breakdown_chart, use_container_width=True, config={'displayModeBar': False})
 
-    # 1. Daily Statistics
+    # Daily Statistics
     daily_stats = filtered_df.groupby(filtered_df['Published Date'].dt.date).size().reset_index(name='count')
     daily_chart = px.line(daily_stats, x='Published Date', y='count', title='Daily Article Count')
     st.plotly_chart(daily_chart, use_container_width=True, config={'displayModeBar': False})
 
-    # 2. Portal Statistics
+    # Portal Statistics
     portal_stats = filtered_df['Portal'].value_counts().reset_index()
     portal_stats.columns = ['Portal', 'Count']
     portal_chart = px.bar(portal_stats, x='Count', y='Portal', orientation='h', title='Articles by Portal')
     st.plotly_chart(portal_chart, use_container_width=True, config={'displayModeBar': False})
 
-    # 3. Tone by Percentage
+    # Tone by Percentage
     tone_percentages = (sentiment_counts / sentiment_counts.sum() * 100).round(1)
     tone_chart = px.pie(values=tone_percentages.values, names=tone_percentages.index, title='Tone Distribution')
     st.plotly_chart(tone_chart, use_container_width=True, config={'displayModeBar': False})
 
-    # 4. Tone by Topic (assuming you have a 'Topic' column in your dataframe)
+    # Tone by Topic (assuming you have a 'Topic' column in your dataframe)
     if 'Topic' in filtered_df.columns:
         tone_by_topic = filtered_df.groupby('Topic')['Sentiment Label'].value_counts(normalize=True).unstack() * 100
         tone_by_topic_chart = px.bar(tone_by_topic, title='Tone by Topic')
