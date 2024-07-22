@@ -341,15 +341,15 @@ def compare_dashboard(df):
     
     with col2:
         st.metric("Neutral Articles", sentiment_counts.get('Neutral', 0))
-        st.markdown("<p class='metric-subtext'>For Selected Period</p>", unsafe_allow_html=True)
+        st.markdown("<p class='metric-subtext' style='text-align: left'>For Selected Period</p>", unsafe_allow_html=True)
     
     with col3:
         st.metric("Positive Articles", sentiment_counts.get('Positive', 0))
-        st.markdown("<p class='metric-subtext'>For Selected Period</p>", unsafe_allow_html=True)
+        st.markdown("<p class='metric-subtext' style='text-align: left'>For Selected Period</p>", unsafe_allow_html=True)
     
     with col4:
         st.metric("Negative Articles", sentiment_counts.get('Negative', 0))
-        st.markdown("<p class='metric-subtext'>For Selected Period</p>", unsafe_allow_html=True)
+        st.markdown("<p class='metric-subtext' style='text-align: left'>For Selected Period</p>", unsafe_allow_html=True)
 
     # Display top headlines
     st.subheader(f"Top Headlines for {date_range_str}")
