@@ -33,6 +33,10 @@ st.markdown("""
 # Custom CSS for styling
 st.markdown("""
     <style>
+    .viewerBadge_container__r5tak {
+        display: none;
+        visibility: hidden;
+    }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
