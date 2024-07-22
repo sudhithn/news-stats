@@ -93,6 +93,7 @@ st.markdown("""
     }
     tr:hover {
         background-color: #f5f5f5;
+        color: black;
     }
     a {
         color: #1e90ff;
