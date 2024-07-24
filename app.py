@@ -228,10 +228,7 @@ def main_dashboard(df):
             headlines = get_headlines(df, selected_date)
 
             # Sort by Sentiment Label instead of Sentiment Score
-            sentiment_order = {'Positive': 2, 'Neutral': 1, 'Negative': 0}
-            headlines['Sentiment Order'] = headlines['Sentiment Label'].map(sentiment_order)
-            headlines = headlines.sort_values(by='Sentiment Order', ascending=False)
-            headlines = headlines.drop('Sentiment Order', axis=1)  # Remove the temporary column
+
 
             headlines = headlines.reset_index(drop=True)
             headlines.index = headlines.index + 1
@@ -246,11 +243,19 @@ def main_dashboard(df):
 
             # Display the styled table with pagination
             if len(headlines) > 10:
-                show_all = st.checkbox("Show all headlines")
-                if show_all:
+                if 'show_all' not in st.session_state:
+                    st.session_state.show_all = False
+
+                if st.session_state.show_all:
                     st.markdown(headlines.to_html(escape=False, index=True), unsafe_allow_html=True)
+                    if st.button("Show Less"):
+                        st.session_state.show_all = False
+                        st.rerun()
                 else:
                     st.markdown(headlines.head(10).to_html(escape=False, index=True), unsafe_allow_html=True)
+                    if st.button("Show more"):
+                        st.session_state.show_all = True
+                        st.rerun()
             else:
                 st.markdown(headlines.to_html(escape=False, index=True), unsafe_allow_html=True)
 
@@ -422,7 +427,8 @@ def create_sentiment_trend(df, start_date, end_date):
     sentiment_over_time = sentiment_over_time.reindex(date_range, fill_value=0)
     
     fig = px.line(sentiment_over_time, x=sentiment_over_time.index, y=sentiment_over_time.columns,
-                  title="Sentiment Trend Over Time", labels={'value': 'Count', 'variable': 'Sentiment'})
+                  title="Sentiment Trend Over Time", labels={'value': 'Count', 'variable': 'Sentiment'},
+                  color_discrete_map={'Neutral': 'grey', 'Positive': 'green', 'Negative': 'red'})
     return fig
 
 
