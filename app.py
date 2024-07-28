@@ -187,6 +187,69 @@ st.markdown("""
         height: 4cm;
         position: absolute;
     }
+    
+    @media screen and (max-width: 400px) {
+            .dashboard-title {
+                margin-top: 50px;
+            }
+        .top-bar {
+            background-color: black;
+            height: 150px;
+            width: 100vw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: orange;
+            font-size: 20px;
+            font-weight: bold;
+            position: absolute;
+            top: -120px;
+            left: -20px
+        }
+        img {
+            position: "absolute";
+            left: 100px;
+            top: 0px;
+            height: 80px;
+            width: 15px;
+        }
+        .footer {
+            left: -20px ;
+            bottom: -250px;
+            width: 100vw;
+            background-color: black;
+            color: white;
+            text-align: left;
+            padding: 10px 0;
+            height: 3cm;
+            position: absolute;
+        }
+        .footer-column {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .footer-content {
+            display: flex;
+            font-size: 8px;
+            justify-content: space-around;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .social-icons img {
+            width: 20px;
+            height: 20px;
+            margin-right: 0px;
+            transform: translate(-30px, 5px);
+        }
+        .copyright {
+            text-align: center;
+            color: grey;
+            margin-top: 40px;
+            font-size: 10px;
+        }
+    }
+            
     .footer-content {
         display: flex;
         justify-content: space-around;
@@ -211,6 +274,9 @@ st.markdown("""
         height: 24px;
         margin-right: 10px;
         transform: translate(20px, 10px);
+    }
+    .phone-social-icons{
+        display: none;
     }
     .copyright {
         text-align: center;
@@ -242,6 +308,10 @@ def create_footer():
             <div class="footer-column">
                 <span>Connect with us</span>
                 <div class="social-icons">
+                    <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_of_Twitter.svg" alt="Twitter"></a>
+                    <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram"></a>
+                </div>
+                <div class="phone-social-icons">
                     <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_of_Twitter.svg" alt="Twitter"></a>
                     <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram"></a>
                 </div>
@@ -420,6 +490,8 @@ def main_dashboard(df):
             # Display headlines
             st.subheader(f"Headlines for {selected_date.strftime('%d-%b-%Y')}")
 
+            headlines = get_headlines(df, selected_date)
+
             # Add filter and search options
             col1, col2 = st.columns(2)
             with col1:
@@ -430,12 +502,6 @@ def main_dashboard(df):
             # Apply filters
             if search_query:
                 headlines = headlines[headlines['Headline'].str.contains(search_query, case=False)]
-            if sentiment_filter != "All":
-                headlines = headlines[headlines['Sentiment Label'] == sentiment_filter]
-
-            headlines = get_headlines(df, selected_date)
-
-            # Apply sentiment filter
             if sentiment_filter != "All":
                 headlines = headlines[headlines['Sentiment Label'] == sentiment_filter]
 
