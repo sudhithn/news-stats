@@ -28,6 +28,7 @@ st.set_page_config(
 #     </style>
 #     """, unsafe_allow_html=True)
 
+
 # Custom CSS for styling
 st.markdown("""
     <style>
@@ -177,7 +178,7 @@ st.markdown("""
     .delta-negative { color: red; }
             
     .footer {
-        left: -80px ;
+        left: -86px ;
         bottom: -250px;
         width: 100vw;
         background-color: black;
@@ -188,9 +189,13 @@ st.markdown("""
         position: absolute;
     }
     
-    @media screen and (max-width: 400px) {
-            .dashboard-title {
-                margin-top: 50px;
+    @media screen and (max-width: 430px) {
+        body {
+            max-width: 100vw;
+            overflow: hidden
+            }
+        .dashboard-title {
+            margin-top: 50px;
             }
         .top-bar {
             background-color: black;
@@ -207,7 +212,7 @@ st.markdown("""
             left: -20px
         }
         img {
-            position: "absolute";
+            position: relative;
             left: 100px;
             top: 0px;
             height: 80px;
@@ -223,6 +228,7 @@ st.markdown("""
             padding: 10px 0;
             height: 3cm;
             position: absolute;
+            overflow: hidden; 
         }
         .footer-column {
             display: flex;
@@ -233,20 +239,34 @@ st.markdown("""
             display: flex;
             font-size: 8px;
             justify-content: space-around;
-            max-width: 1200px;
+            max-width: 100%;
             margin: 0 auto;
+            padding: 0 10px;
         }
         .social-icons img {
             width: 20px;
             height: 20px;
-            margin-right: 0px;
-            transform: translate(-30px, 5px);
+            margin-right: 5px;
+        }
+        .phone-social-icons {
+            position: relative;
+            display: flex;
+            bottom: 10px;
+            left: 0px;
+            transform: translateX(0);
         }
         .copyright {
             text-align: center;
             color: grey;
-            margin-top: 40px;
+            margin-top: 30px;
             font-size: 10px;
+        }
+        table {
+            font-size: 14px;
+            border-collapse: collapse;
+            width: 100%;
+            overflow-x: auto;
+            display: block;
         }
     }
             
@@ -350,6 +370,7 @@ st.markdown("""
     }
     </style>
     """, unsafe_allow_html=True)
+
 
 # Function to load and process data
 def load_data():
