@@ -10,7 +10,7 @@ from PIL import Image
 
 # Set page configuration
 st.set_page_config(
-    page_title="Media Monitor Dashboard",
+    page_title="Hindumisia.ai",
     page_icon="🗞️",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -169,6 +169,15 @@ st.markdown("""
         color: #888;
     }
 
+    .metric-equation {
+        color: #cccccc;
+        font-size: 24px;
+        position: absolute;
+        right: -15px;
+        top: 50%;
+        transform: translateY(-50%);
+    }    
+            
     .total-articles .metric-header { background-color: #87CEEB; }
     .negative-articles .metric-header { background-color: #FF0000; }
     .neutral-articles .metric-header { background-color: #A5A5A5; }
@@ -328,11 +337,11 @@ def create_footer():
             <div class="footer-column">
                 <span>Connect with us</span>
                 <div class="social-icons">
-                    <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_of_Twitter.svg" alt="Twitter"></a>
+                    <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/5/57/X_logo_2023_%28white%29.png" alt="X (Twitter)"></a>
                     <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram"></a>
                 </div>
                 <div class="phone-social-icons">
-                    <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_of_Twitter.svg" alt="Twitter"></a>
+                    <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/5/57/X_logo_2023_%28white%29.png" alt="X (Twitter)"></a>
                     <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram"></a>
                 </div>
             </div>
@@ -370,19 +379,30 @@ st.markdown("""
     }
     </style>
     """, unsafe_allow_html=True)
+# st.markdown("""
+#     <style>
+#     [data-testid="stImage"] {
+#         position: relative;
+#         z-index: 1100;
+#         left: 20px;
+#         top: -100px;
+#         margin-bottom: -100px;
+#     }
+#     </style>
+#     """, unsafe_allow_html=True)
 
 
 # Function to load and process data
 def load_data():
-    df = pd.read_csv('consolidated_file.csv')
-    df['Published Date'] = pd.to_datetime(df['Published Date'], format='%d-%b-%Y')
+    df = pd.read_csv('news.csv')
+    df['published_date'] = pd.to_datetime(df['published_date'], format='%d-%m-%Y')
     return df
 
 # Function to get article counts and sentiment breakdown for a given date
 def get_daily_stats(df, date):
-    daily_data = df[df['Published Date'].dt.date == date]
+    daily_data = df[df['published_date'].dt.date == date]
     total_count = len(daily_data)
-    sentiment_counts = daily_data['Sentiment Label'].value_counts()
+    sentiment_counts = daily_data['sentiment_label'].value_counts()
     return total_count, sentiment_counts
 
 # Function to safely convert numpy types to Python types
@@ -395,82 +415,103 @@ def safe_convert(value):
 
 # Function to get headlines for a given date
 def get_headlines(df, date):
-    daily_data = df[df['Published Date'].dt.date == date]
-    return daily_data[['Portal', 'Published Date', 'Author', 'Headline', 'URL Link', 'Sentiment Label']]
+    daily_data = df[df['published_date'].dt.date == date]
+    columns = ['portal', 'published_date', 'author', 'headline', 'url_link', 'sentiment_label']
+    return daily_data[columns]
 
-
-def create_stacked_sentiment_graph(df, date):
-    portal_sentiment = df.groupby('Portal')['Sentiment Label'].value_counts().unstack(fill_value=0)
-    portal_sentiment['Total'] = portal_sentiment.sum(axis=1)
-    portal_sentiment = portal_sentiment.sort_values('Total', ascending=True)
+def create_stacked_sentiment_graph(df, start_date, end_date):
+    if isinstance(start_date, pd.Timestamp):
+        start_date = start_date.date()
+    if isinstance(end_date, pd.Timestamp):
+        end_date = end_date.date()
     
-    percentages = portal_sentiment.div(portal_sentiment['Total'], axis=0) * 100
+    filtered_df = df[(df['published_date'].dt.date >= start_date) & (df['published_date'].dt.date <= end_date)]
+    
+    portal_sentiment = filtered_df.groupby('portal')['sentiment_label'].value_counts(normalize=True).unstack(fill_value=0)
+    portal_sentiment = portal_sentiment.sort_values('Negative', ascending=False)
     
     fig = go.Figure()
     
-    colors = {'Neutral': '#A5A5A5', 'Negative': '#FF0000', 'Positive': '#70AD47'}
+    fig.add_trace(go.Bar(
+        y=portal_sentiment.index,
+        x=-portal_sentiment['Negative'],
+        name='Negative',
+        orientation='h',
+        marker=dict(color='#FF0000'),
+        text=((portal_sentiment['Negative']*100).round(1).astype(str) + '%'),
+        textposition='inside',
+        insidetextanchor='middle'
+    ))
     
-    for sentiment in ['Negative', 'Neutral', 'Positive']:
-        fig.add_trace(go.Bar(
-            y=portal_sentiment.index,
-            x=percentages[sentiment],
-            name=sentiment,
-            orientation='h',
-            marker=dict(color=colors[sentiment]),
-            text=percentages[sentiment].round(1).astype(str) + '%',
-            textposition='inside'
-        ))
+    fig.add_trace(go.Bar(
+        y=portal_sentiment.index,
+        x=portal_sentiment['Neutral'],
+        name='Neutral',
+        orientation='h',
+        marker=dict(color='#A5A5A5'),
+        text=((portal_sentiment['Neutral']*100).round(1).astype(str) + '%'),
+        textposition='inside',
+        insidetextanchor='middle'
+    ))
+    
+    fig.add_trace(go.Bar(
+        y=portal_sentiment.index,
+        x=portal_sentiment['Positive'],
+        name='Positive',
+        orientation='h',
+        marker=dict(color='#70AD47'),
+        text=((portal_sentiment['Positive']*100).round(1).astype(str) + '%'),
+        textposition='inside',
+        insidetextanchor='middle'
+    ))
     
     fig.update_layout(
-        barmode='stack',
+        barmode='relative',
         title='Sentiment Distribution by Portal',
-        yaxis={'title': 'Portal', 'categoryorder':'total ascending'},
-        xaxis={'title': 'Percentage'},
+        yaxis={'title': '', 'categoryorder':'total ascending'},
+        xaxis={'title': '', 'tickformat': '.0%', 'range': [-1, 1]},
         height=400,
         legend_title_text='Sentiment',
         bargap=0.1
     )
     
-    # Add total articles annotation
-    for i, (portal, total) in enumerate(portal_sentiment['Total'].items()):
-        fig.add_annotation(
-            x=100,
-            y=i,
-            text=f"Total: {total}",
-            showarrow=False,
-            xanchor='left',
-            xshift=10,
-            font=dict(size=10)
-        )
-    
     return fig
 
 # Modify the create_portal_chart function
-def create_portal_chart(df, date):
-    portal_counts = df[df['Published Date'].dt.date == date]['Portal'].value_counts().sort_values(ascending=True)
-    fig = px.bar(portal_counts, x=portal_counts.values, y=portal_counts.index, orientation='h',
-                 title='Articles by Portal', labels={'x': '# of Articles', 'y': 'Portal'})
-    fig.update_layout(yaxis={'categoryorder':'total ascending'})
+def create_portal_chart(df, start_date, end_date):
+    if isinstance(start_date, pd.Timestamp):
+        start_date = start_date.date()
+    if isinstance(end_date, pd.Timestamp):
+        end_date = end_date.date()
+    
+    filtered_df = df[(df['published_date'].dt.date >= start_date) & (df['published_date'].dt.date <= end_date)]
+    portal_counts = filtered_df['portal'].value_counts().reset_index()
+    portal_counts.columns = ['portal', 'count']
+    portal_counts = portal_counts.sort_values('count', ascending=True)
+    
+    fig = px.bar(portal_counts, x='count', y='portal', orientation='h',
+                 title='Articles by Portal')
     fig.update_layout(
-        height=275,
+        yaxis={'title': '', 'categoryorder':'total ascending'},
+        xaxis={'title': '# of Articles'},
+        height=400,
         margin=dict(l=50, r=50, t=50, b=50)
     )
     return fig
 
-
 # Main dashboard function
 def main_dashboard(df):
-    # Date and Portal selection in the same row
+    # Date and portal selection in the same row
     col1, col2 = st.columns(2)
     with col1:
-        max_date = df['Published Date'].max().date()
+        max_date = df['published_date'].max().date()
         selected_date = st.date_input("Select a Date", max_value=max_date, value=max_date, format="DD/MM/YYYY")
     with col2:
-        portals = ['All'] + sorted(df['Portal'].unique().tolist())
-        selected_portal = st.selectbox("Select Portal", portals)
+        portals = ['All'] + sorted(df['portal'].unique().tolist())
+        selected_portal = st.selectbox("Select portal", portals)
 
     if selected_portal != 'All':
-        df = df[df['Portal'] == selected_portal]
+        df = df[df['portal'] == selected_portal]
 
     if selected_date:
         # Get stats for selected date and previous date
@@ -502,6 +543,7 @@ def main_dashboard(df):
                         <div class="metric-separator"></div>
                         <div class="metric-delta {delta_class}">{delta_symbol} {abs(safe_convert(delta))}</div>
                         <div class="metric-subtext">From Previous Day</div>
+                        <div class="metric-equation">{'=' if label == 'Total Articles' else '+' if label != 'Positive' else ''}</div>
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -516,26 +558,32 @@ def main_dashboard(df):
             # Add filter and search options
             col1, col2 = st.columns(2)
             with col1:
-                search_query = st.text_input("Search Headlines", placeholder="Enter keywords and press Enter to search")
+                search_query = st.text_input("Search headlines", placeholder="Enter keywords and press Enter to search")
             with col2:
                 sentiment_filter = st.selectbox("Filter headlines by sentiment", ["All", "Negative", "Neutral", "Positive"])
 
             # Apply filters
             if search_query:
-                headlines = headlines[headlines['Headline'].str.contains(search_query, case=False)]
+                headlines = headlines[headlines['headline'].str.contains(search_query, case=False)]
             if sentiment_filter != "All":
-                headlines = headlines[headlines['Sentiment Label'] == sentiment_filter]
+                headlines = headlines[headlines['sentiment_label'] == sentiment_filter]
 
             headlines = headlines.reset_index(drop=True)
             headlines.index = headlines.index + 1
 
             # Create clickable links
-            headlines['URL Link'] = headlines['URL Link'].apply(lambda x: f'<a href="{x}" target="_blank">Read More</a>')
+            if 'url_link' in headlines.columns:
+                headlines['url_link'] = headlines['url_link'].apply(lambda x: f'<a href="{x}" target="_blank">Read More</a>')
+            elif 'url' in headlines.columns:
+                headlines['url'] = headlines['url'].apply(lambda x: f'<a href="{x}" target="_blank">Read More</a>')
 
             # Apply sentiment color styling
-            headlines['Sentiment Label'] = headlines['Sentiment Label'].apply(
+            headlines['sentiment_label'] = headlines['sentiment_label'].apply(
                 lambda x: f'<span style="color: {"green" if x == "Positive" else "red" if x == "Negative" else "gray"}">{x}</span>'
             )
+
+            # Rename columns
+            headlines.columns = ['Portal', 'Published Date', 'Author', 'Headline', 'URL Link', 'Sentiment']
 
             # Display the styled table with pagination
             if len(headlines) > 10:
@@ -555,9 +603,8 @@ def main_dashboard(df):
             else:
                 st.markdown(headlines.to_html(escape=False, index=True), unsafe_allow_html=True)
 
-
             # Create and display stacked sentiment graph
-            stacked_sentiment_chart = create_stacked_sentiment_graph(df, selected_date)
+            stacked_sentiment_chart = create_stacked_sentiment_graph(df, selected_date, selected_date)
             if not stacked_sentiment_chart.data:
                 st.warning("No data available to create the sentiment distribution chart.")
             else:
@@ -568,196 +615,225 @@ def main_dashboard(df):
 
             with col1:
                 # Daily Articles Chart
-                daily_articles_chart = create_daily_articles_chart(df)
+                daily_articles_chart = create_daily_articles_chart(df, selected_date)
                 st.plotly_chart(daily_articles_chart, use_container_width=True, config={'displayModeBar': False})
 
             with col2:
-                # Portal Statistics Chart (horizontal bar chart)
-                portal_chart = create_portal_chart(df, selected_date)
+                # portal Statistics Chart (horizontal bar chart)
+                portal_chart = create_portal_chart(df, selected_date, selected_date)
                 st.plotly_chart(portal_chart, use_container_width=True, config={'displayModeBar': False})
 
-def create_daily_articles_chart(df):
-    daily_counts = df.groupby('Published Date').size().reset_index(name='count')
-    fig = px.line(daily_counts, x='Published Date', y='count', title='Daily Article Count')
+def create_daily_articles_chart(df, selected_date):
+    start_date = selected_date - timedelta(days=30)
+    daily_counts = df[(df['published_date'].dt.date >= start_date) & (df['published_date'].dt.date <= selected_date)]
+    daily_counts = daily_counts.groupby(daily_counts['published_date'].dt.date).size().reset_index(name='articles')
+    fig = px.line(daily_counts, x='published_date', y='articles', title='Daily Article Count')
     fig.update_layout(
-        height=300,  # Adjust this value to make the chart more compact
-        margin=dict(l=50, r=50, t=50, b=50)
+        height=300, 
+        margin=dict(l=50, r=50, t=50, b=50),
+        xaxis_title="",
+        yaxis_title="# of Articles"
     )
     return fig
 
-#Comppare news stats
-def compare_dashboard(df):
-    # Create three columns for date selection and portal selection
+#Range of news stats
+def range_dashboard(df):
     col1, col2, col3 = st.columns(3)
-
     with col1:
-        start_date = st.date_input("Start Date", value=None, min_value=df['Published Date'].min().date(), max_value=df['Published Date'].max().date(), format="DD/MM/YYYY", key="start_date")
-
+        start_date = st.date_input("Start Date", value=None, min_value=df['published_date'].min().date(), max_value=df['published_date'].max().date(), format="DD/MM/YYYY", key="start_date")
     with col2:
-        end_date = st.date_input("End Date", value=None, min_value=df['Published Date'].min().date(), max_value=df['Published Date'].max().date(), format="DD/MM/YYYY", key="end_date")
-
+        end_date = st.date_input("End Date", value=None, min_value=df['published_date'].min().date(), max_value=df['published_date'].max().date(), format="DD/MM/YYYY", key="end_date")
     with col3:
-        # Portal selection
-        portals = ['All'] + sorted(df['Portal'].unique().tolist())
-        selected_portal = st.selectbox("Select Portal", portals, key="portal_selector_compare")
-
-    # # Portal selection
-    # portals = ['All'] + sorted(df['Portal'].unique().tolist())
-    # selected_portal = st.selectbox("Select Portal", portals, key="portal_selector")
+        portals = ['All'] + sorted(df['portal'].unique().tolist())
+        selected_portal = st.selectbox("Select portal", portals, key="portal_selector_range")
     
-        if selected_portal != 'All':
-            df = df[df['Portal'] == selected_portal]
+    if selected_portal != 'All':
+        df = df[df['portal'] == selected_portal]
 
-    # Filter data based on selected date range
     if start_date and end_date:
-        mask = (df['Published Date'].dt.date >= start_date) & (df['Published Date'].dt.date <= end_date)
+        mask = (df['published_date'].dt.date >= start_date) & (df['published_date'].dt.date <= end_date)
         filtered_df = df.loc[mask]
-        date_range_str = f"{start_date.strftime('%d %b %Y')} to {end_date.strftime('%d %b %Y')}"
+        date_range_str = f"{start_date.strftime('%d %b %Y')} and {end_date.strftime('%d %b %Y')}"
+
+        # Calculate total articles and sentiment counts
+        total_articles = len(filtered_df)
+        sentiment_counts = filtered_df['sentiment_label'].value_counts()
+
+        # Display metrics
+        col1, col2, col3, col4 = st.columns(4)
+
+        metric_data = [
+            ("Total Articles", total_articles, "For Selected Period", "total-articles"),
+            ("Negative", sentiment_counts.get('Negative', 0), "For Selected Period", "negative-articles"),
+            ("Neutral", sentiment_counts.get('Neutral', 0), "For Selected Period", "neutral-articles"),
+            ("Positive", sentiment_counts.get('Positive', 0), "For Selected Period", "positive-articles")
+        ]
+
+        for col, (label, value, subtext, class_name) in zip([col1, col2, col3, col4], metric_data):
+            with col:
+                st.markdown(f"""
+                <div class="metric-box {class_name}">
+                    <div class="metric-header">{label}</div>
+                    <div class="metric-value">{safe_convert(value)}</div>
+                    <div class="metric-separator"></div>
+                    <div class="metric-subtext">{subtext}</div>
+                    <div class="metric-equation">{'=' if label == 'Total Articles' else '+' if label != 'Positive' else ''}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        # Display headlines
+        st.subheader(f"Headlines between {date_range_str}")
+        
+        # Search and filter
+        col1, col2 = st.columns(2)
+        with col1:
+            search_query = st.text_input("Search headlines", placeholder="Enter keywords and press Enter to search", key="headline_search_range")
+        with col2:
+            sentiment_filter = st.selectbox("Filter by Sentiment", ["All", "Positive", "Neutral", "Negative"], key="sentiment_filter_range")
+
+        # Apply filters
+        if search_query:
+            filtered_df = filtered_df[filtered_df['headline'].str.contains(search_query, case=False)]
+        if sentiment_filter != "All":
+            filtered_df = filtered_df[filtered_df['sentiment_label'] == sentiment_filter]
+
+        # Display headlines
+        headlines = filtered_df[['portal', 'published_date', 'author', 'headline', 'url_link', 'sentiment_label']]
+        headlines['url_link'] = headlines['url_link'].apply(lambda x: f'<a href="{x}" target="_blank">Read More</a>')
+        headlines['sentiment_label'] = headlines['sentiment_label'].apply(
+            lambda x: f'<span style="color: {"green" if x == "Positive" else "red" if x == "Negative" else "gray"}">{x}</span>'
+        )
+        headlines.columns = ['Portal', 'Published Date', 'Author', 'Headline', 'URL Link', 'Sentiment']
+
+        if len(headlines) > 10:
+            if 'show_all_range' not in st.session_state:
+                st.session_state.show_all_range = False
+
+            if st.session_state.show_all_range:
+                st.markdown(headlines.to_html(escape=False, index=False), unsafe_allow_html=True)
+                if st.button("Show Less", key="show_less_range"):
+                    st.session_state.show_all_range = False
+                    st.rerun()
+            else:
+                st.markdown(headlines.head(10).to_html(escape=False, index=False), unsafe_allow_html=True)
+                if st.button("Show more", key="show_more_range"):
+                    st.session_state.show_all_range = True
+                    st.rerun()
+        else:
+            st.markdown(headlines.to_html(escape=False, index=False), unsafe_allow_html=True)
+
+        # Create and display charts
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # Sentiment Trend Over Time
+            trend_chart = create_sentiment_trend(filtered_df, start_date, end_date)
+            st.plotly_chart(trend_chart, use_container_width=True, config={'displayModeBar': False})
+
+        with col2:
+            # Sentiment Distribution by Portal
+            sentiment_distribution = create_stacked_sentiment_graph(filtered_df, start_date, end_date)
+            st.plotly_chart(sentiment_distribution, use_container_width=True, config={'displayModeBar': False})
+
+        # Articles by Portal
+        portal_chart = create_portal_chart(filtered_df, start_date, end_date)
+        st.plotly_chart(portal_chart, use_container_width=True, config={'displayModeBar': False})
+
     else:
         st.warning("Please select a date range to view statistics.")
-        return
-
-    # Calculate total articles and sentiment counts
-    total_articles = len(filtered_df)
-    sentiment_counts = filtered_df['Sentiment Label'].value_counts()
-
-    # Display metrics
-    col1, col2, col3, col4 = st.columns(4)
-
-    metric_data = [
-        ("Total Articles", total_articles, "For Selected Period", "total-articles"),
-        ("Negative", sentiment_counts.get('Negative', 0), "For Selected Period", "negative-articles"),
-        ("Neutral", sentiment_counts.get('Neutral', 0), "For Selected Period", "neutral-articles"),
-        ("Positive", sentiment_counts.get('Positive', 0), "For Selected Period", "positive-articles")
-    ]
-
-    for col, (label, value, subtext, class_name) in zip([col1, col2, col3, col4], metric_data):
-        with col:
-            st.markdown(f"""
-            <div class="metric-box {class_name}">
-                <div class="metric-header">{label}</div>
-                <div class="metric-value">{safe_convert(value)}</div>
-                <div class="metric-separator"></div>
-                <div class="metric-subtext">{subtext}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    # Display headlines
-    st.subheader(f"Headlines for {date_range_str}")
-    
-    # Create two columns for search and filter
-    col1, col2 = st.columns(2)
-
-    with col1:
-        # Search functionality
-        search_query = st.text_input("Search Headlines", placeholder="Enter keywords and press Enter to search", key="headline_search_compare")
-
-    with col2:
-        # Sentiment filtering
-        sentiment_filter = st.selectbox("Filter by Sentiment", ["All", "Positive", "Neutral", "Negative"], key="sentiment_filter_compare")
-
-    # Apply filters
-    if search_query:
-        filtered_df = filtered_df[filtered_df['Headline'].str.contains(search_query, case=False)]
-    if sentiment_filter != "All":
-        filtered_df = filtered_df[filtered_df['Sentiment Label'] == sentiment_filter]
-
-    headlines = filtered_df[['Portal', 'Published Date', 'Author', 'Headline', 'URL Link', 'Sentiment Label']].sample(n=min(10, len(filtered_df)))
-    headlines['URL Link'] = headlines['URL Link'].apply(lambda x: f'<a href="{x}" target="_blank">Read More</a>')
-    headlines['Sentiment Label'] = headlines['Sentiment Label'].apply(
-        lambda x: f'<span class="sentiment sentiment-{x}">{x}</span>'
-    )
-    st.markdown(headlines.to_html(escape=False, index=False), unsafe_allow_html=True)
-
-    # Create and display charts
-    col1, col2 = st.columns(2)
-
-    with col1:
-        # 1. Sentiment Trend Over Time
-        trend_chart = create_sentiment_trend(filtered_df, start_date, end_date)
-        st.plotly_chart(trend_chart, use_container_width=True, config={'displayModeBar': False})
-
-    with col2:
-        # 2. Sentiment Distribution by Portal
-        sentiment_distribution = create_stacked_sentiment_graph(filtered_df, start_date)
-        st.plotly_chart(sentiment_distribution, use_container_width=True, config={'displayModeBar': False})
-
-    col3, col4 = st.columns(2)
-
-    with col3:
-        # 3. Daily Article Count
-        daily_stats = filtered_df.groupby(filtered_df['Published Date'].dt.date).size().reset_index(name='count')
-        daily_chart = px.line(daily_stats, x='Published Date', y='count', title='Daily Article Count')
-        st.plotly_chart(daily_chart, use_container_width=True, config={'displayModeBar': False})
-
-    with col4:
-        # 4. Articles by Portal
-        portal_chart = create_portal_chart(filtered_df, start_date)
-        st.plotly_chart(portal_chart, use_container_width=True, config={'displayModeBar': False})
 
 def create_sentiment_trend(df, start_date, end_date):
     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
-    sentiment_over_time = df.groupby([df['Published Date'].dt.date, 'Sentiment Label']).size().unstack(fill_value=0)
+    sentiment_over_time = df.groupby([df['published_date'].dt.date, 'sentiment_label']).size().unstack(fill_value=0)
     
     sentiment_over_time = sentiment_over_time.reindex(date_range, fill_value=0)
     
-    fig = px.line(sentiment_over_time, x=sentiment_over_time.index, y=sentiment_over_time.columns,
-                  title="Sentiment Trend Over Time", labels={'value': 'Count', 'variable': 'Sentiment'},
+    # Reset the index and rename the date column
+    sentiment_over_time = sentiment_over_time.reset_index()
+    sentiment_over_time = sentiment_over_time.rename(columns={'index': 'date'})
+    
+    # Melt the DataFrame
+    sentiment_over_time = sentiment_over_time.melt(id_vars='date', var_name='sentiment', value_name='count')
+    
+    fig = px.line(sentiment_over_time, x='date', y='count', color='sentiment',
+                  title="Sentiment Trend Over Time", labels={'count': 'Count', 'date': 'Date'},
                   color_discrete_map={'Neutral': 'grey', 'Positive': 'green', 'Negative': 'red'})
     return fig
 
-def create_stacked_sentiment_graph(df, date):
-    portal_sentiment = df.groupby('Portal')['Sentiment Label'].value_counts().unstack(fill_value=0)
-    portal_sentiment['Total'] = portal_sentiment.sum(axis=1)
-    portal_sentiment = portal_sentiment.sort_values('Total', ascending=True)
+def create_stacked_sentiment_graph(df, start_date, end_date):
+    if isinstance(start_date, pd.Timestamp):
+        start_date = start_date.date()
+    if isinstance(end_date, pd.Timestamp):
+        end_date = end_date.date()
     
-    percentages = portal_sentiment.div(portal_sentiment['Total'], axis=0) * 100
+    filtered_df = df[(df['published_date'].dt.date >= start_date) & (df['published_date'].dt.date <= end_date)]
+    
+    portal_sentiment = filtered_df.groupby('portal')['sentiment_label'].value_counts(normalize=True).unstack(fill_value=0)
+    portal_sentiment = portal_sentiment.sort_values('Negative', ascending=False)
     
     fig = go.Figure()
     
-    colors = {'Neutral': '#A5A5A5', 'Negative': '#FF0000', 'Positive': '#70AD47'}
+    fig.add_trace(go.Bar(
+        y=portal_sentiment.index,
+        x=-portal_sentiment['Negative'],
+        name='Negative',
+        orientation='h',
+        marker=dict(color='#FF0000'),
+        text=((portal_sentiment['Negative']*100).round(1).astype(str) + '%'),
+        textposition='inside',
+        insidetextanchor='middle'
+    ))
     
-    for sentiment in ['Negative', 'Neutral', 'Positive']:
-        fig.add_trace(go.Bar(
-            y=portal_sentiment.index,
-            x=percentages[sentiment],
-            name=sentiment,
-            orientation='h',
-            marker=dict(color=colors[sentiment]),
-            text=percentages[sentiment].round(1).astype(str) + '%',
-            textposition='inside'
-        ))
+    fig.add_trace(go.Bar(
+        y=portal_sentiment.index,
+        x=portal_sentiment['Neutral'],
+        name='Neutral',
+        orientation='h',
+        marker=dict(color='#A5A5A5'),
+        text=((portal_sentiment['Neutral']*100).round(1).astype(str) + '%'),
+        textposition='inside',
+        insidetextanchor='middle'
+    ))
+    
+    fig.add_trace(go.Bar(
+        y=portal_sentiment.index,
+        x=portal_sentiment['Positive'],
+        name='Positive',
+        orientation='h',
+        marker=dict(color='#70AD47'),
+        text=((portal_sentiment['Positive']*100).round(1).astype(str) + '%'),
+        textposition='inside',
+        insidetextanchor='middle'
+    ))
     
     fig.update_layout(
-        barmode='stack',
+        barmode='relative',
         title='Sentiment Distribution by Portal',
-        yaxis={'title': 'Portal', 'categoryorder':'total ascending'},
-        xaxis={'title': 'Percentage'},
+        yaxis={'title': '', 'categoryorder':'total ascending'},
+        xaxis={'title': '', 'tickformat': '.0%', 'range': [-1, 1]},
         height=400,
         legend_title_text='Sentiment',
         bargap=0.1
     )
     
-    # Add total articles annotation
-    for i, (portal, total) in enumerate(portal_sentiment['Total'].items()):
-        fig.add_annotation(
-            x=100,
-            y=i,
-            text=f"Total: {total}",
-            showarrow=False,
-            xanchor='left',
-            xshift=10,
-            font=dict(size=10)
-        )
-    
     return fig
 
-def create_portal_chart(df, date):
-    portal_counts = df['Portal'].value_counts().sort_values(ascending=True)
-    fig = px.bar(portal_counts, x=portal_counts.values, y=portal_counts.index, orientation='h',
-                 title='Articles by Portal', labels={'x': '# of Articles', 'y': 'Portal'})
-    fig.update_layout(yaxis={'categoryorder':'total ascending'})
+def create_portal_chart(df, start_date, end_date):
+    if isinstance(start_date, pd.Timestamp):
+        start_date = start_date.date()
+    if isinstance(end_date, pd.Timestamp):
+        end_date = end_date.date()
+    
+    filtered_df = df[(df['published_date'].dt.date >= start_date) & (df['published_date'].dt.date <= end_date)]
+    portal_counts = filtered_df['portal'].value_counts().reset_index()
+    portal_counts.columns = ['portal', 'count']
+    portal_counts = portal_counts.sort_values('count', ascending=True)
+    
+    fig = px.bar(portal_counts, x='count', y='portal', orientation='h',
+                 title='Articles by Portal')
     fig.update_layout(
+        yaxis={'title': '', 'categoryorder':'total ascending'},
+        xaxis={'title': '# of Articles'},
         height=400,
         margin=dict(l=50, r=50, t=50, b=50)
     )
@@ -765,37 +841,29 @@ def create_portal_chart(df, date):
 
 #Monthly dashboard
 def monthly_dashboard(df):
-
-    # Create two columns for month and portal selection
     col1, col2 = st.columns(2)
-
     with col1:
-        # Create a list of month-year options
-        month_year_options = ["Select Month"] + [f"{calendar.month_name[d.month]} {d.year}" for d in pd.date_range(start=df['Published Date'].min(), end=df['Published Date'].max(), freq='MS')]
-        selected_month_year = st.selectbox("Select Month", month_year_options, key="select_month_year_monthly")  # Changed key here
-
+        month_year_options = ["Select Month"] + [f"{calendar.month_name[d.month]} {d.year}" for d in pd.date_range(start=df['published_date'].min(), end=df['published_date'].max(), freq='MS')]
+        selected_month_year = st.selectbox("Select Month", month_year_options, key="select_month_year_monthly")
     with col2:
-        # Portal selection
-        portals = ['All'] + sorted(df['Portal'].unique().tolist())
-        selected_portal = st.selectbox("Select Portal", portals, key="portal_selector_monthly")
+        portals = ['All'] + sorted(df['portal'].unique().tolist())
+        selected_portal = st.selectbox("Select portal", portals, key="portal_selector_monthly")
     
-        if selected_portal != 'All':
-            df = df[df['Portal'] == selected_portal]
+    if selected_portal != 'All':
+        df = df[df['portal'] == selected_portal]
 
     if selected_month_year != "Select Month":
         month, year = selected_month_year.split()
         month_num = list(calendar.month_name).index(month)
         start_date = pd.Timestamp(f"{year}-{month_num:02d}-01")
         end_date = start_date + pd.offsets.MonthEnd(0)
-        mask = (df['Published Date'].dt.date >= start_date.date()) & (df['Published Date'].dt.date <= end_date.date())
+        mask = (df['published_date'].dt.date >= start_date.date()) & (df['published_date'].dt.date <= end_date.date())
         filtered_df = df.loc[mask]
         date_range_str = selected_month_year
-        start_date = start_date.date()
-        end_date = end_date.date()
 
         # Calculate total articles and sentiment counts
         total_articles = len(filtered_df)
-        sentiment_counts = filtered_df['Sentiment Label'].value_counts()
+        sentiment_counts = filtered_df['sentiment_label'].value_counts()
 
         # Display metrics
         col1, col2, col3, col4 = st.columns(4)
@@ -815,100 +883,145 @@ def monthly_dashboard(df):
                     <div class="metric-value">{safe_convert(value)}</div>
                     <div class="metric-separator"></div>
                     <div class="metric-subtext">{subtext}</div>
+                    <div class="metric-equation">{'=' if label == 'Total Articles' else '+' if label != 'Positive' else ''}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
-        # Display top headlines (randomly ordered)
+        # Display headlines
         st.subheader(f"Headlines for {date_range_str}")
         
-        # Create two columns for search and filter
+        # Search and filter
         col1, col2 = st.columns(2)
-
         with col1:
-            # Search functionality
-            search_query = st.text_input("Search Headlines", placeholder="Enter keywords and press Enter to search", key="headline_search_monthly")
-
+            search_query = st.text_input("Search headlines", placeholder="Enter keywords and press Enter to search", key="headline_search_monthly")
         with col2:
-            # Sentiment filtering
             sentiment_filter = st.selectbox("Filter by Sentiment", ["All", "Positive", "Neutral", "Negative"], key="sentiment_filter_monthly")
 
         # Apply filters
         if search_query:
-            filtered_df = filtered_df[filtered_df['Headline'].str.contains(search_query, case=False)]
+            filtered_df = filtered_df[filtered_df['headline'].str.contains(search_query, case=False)]
         if sentiment_filter != "All":
-            filtered_df = filtered_df[filtered_df['Sentiment Label'] == sentiment_filter]
+            filtered_df = filtered_df[filtered_df['sentiment_label'] == sentiment_filter]
 
-        # Then continue with displaying the headlines
-        random_headlines = filtered_df[['Portal', 'Published Date', 'Author', 'Headline', 'URL Link', 'Sentiment Label']].sample(n=min(10, len(filtered_df)))
-
-        random_headlines = filtered_df[['Portal', 'Published Date', 'Author', 'Headline', 'URL Link', 'Sentiment Label']].sample(n=min(10, len(filtered_df)))
-        random_headlines['URL Link'] = random_headlines['URL Link'].apply(lambda x: f'<a href="{x}" target="_blank">Read More</a>')
-        random_headlines['Sentiment Label'] = random_headlines['Sentiment Label'].apply(
-            lambda x: f'<span class="sentiment sentiment-{x}">{x}</span>'
+        # Display headlines
+        headlines = filtered_df[['portal', 'published_date', 'author', 'headline', 'url_link', 'sentiment_label']]
+        headlines['url_link'] = headlines['url_link'].apply(lambda x: f'<a href="{x}" target="_blank">Read More</a>')
+        headlines['sentiment_label'] = headlines['sentiment_label'].apply(
+            lambda x: f'<span style="color: {"green" if x == "Positive" else "red" if x == "Negative" else "gray"}">{x}</span>'
         )
-        st.markdown(random_headlines.to_html(escape=False, index=False), unsafe_allow_html=True)
+        headlines.columns = ['Portal', 'Published Date', 'Author', 'Headline', 'URL Link', 'Sentiment']
+
+        if len(headlines) > 10:
+            if 'show_all_monthly' not in st.session_state:
+                st.session_state.show_all_monthly = False
+
+            if st.session_state.show_all_monthly:
+                st.markdown(headlines.to_html(escape=False, index=False), unsafe_allow_html=True)
+                if st.button("Show Less", key="show_less_monthly"):
+                    st.session_state.show_all_monthly = False
+                    st.rerun()
+            else:
+                st.markdown(headlines.head(10).to_html(escape=False, index=False), unsafe_allow_html=True)
+                if st.button("Show more", key="show_more_monthly"):
+                    st.session_state.show_all_monthly = True
+                    st.rerun()
+        else:
+            st.markdown(headlines.to_html(escape=False, index=False), unsafe_allow_html=True)
 
         # Create and display charts
         col1, col2 = st.columns(2)
 
         with col1:
-            # 1. Sentiment Trend Over Time
+            # Sentiment Trend Over Time
             trend_chart = create_sentiment_trend(filtered_df, start_date, end_date)
             st.plotly_chart(trend_chart, use_container_width=True, config={'displayModeBar': False})
 
         with col2:
-            # 2. Sentiment Distribution by Portal
-            sentiment_distribution = create_stacked_sentiment_graph(filtered_df, start_date)
+            # Sentiment Distribution by Portal
+            sentiment_distribution = create_stacked_sentiment_graph(filtered_df, start_date, end_date)
             st.plotly_chart(sentiment_distribution, use_container_width=True, config={'displayModeBar': False})
 
-        # 3. Articles by Portal
-        portal_chart = create_portal_chart(filtered_df, start_date)
+        # Articles by Portal
+        portal_chart = create_portal_chart(filtered_df, start_date, end_date)
         st.plotly_chart(portal_chart, use_container_width=True, config={'displayModeBar': False})
 
     else:
         st.warning("Please select a month to view statistics.")
 
-def create_stacked_sentiment_graph(df, date):
-    portal_sentiment = df.groupby('Portal')['Sentiment Label'].value_counts().unstack(fill_value=0)
-    portal_sentiment['Total'] = portal_sentiment.sum(axis=1)
-    portal_sentiment = portal_sentiment.sort_values('Total', ascending=False)
+def create_stacked_sentiment_graph(df, start_date, end_date):
+    if isinstance(start_date, pd.Timestamp):
+        start_date = start_date.date()
+    if isinstance(end_date, pd.Timestamp):
+        end_date = end_date.date()
     
-    percentages = portal_sentiment.div(portal_sentiment['Total'], axis=0) * 100
-    percentages = percentages.drop('Total', axis=1)
+    filtered_df = df[(df['published_date'].dt.date >= start_date) & (df['published_date'].dt.date <= end_date)]
+    
+    portal_sentiment = filtered_df.groupby('portal')['sentiment_label'].value_counts(normalize=True).unstack(fill_value=0)
+    portal_sentiment = portal_sentiment.sort_values('Negative', ascending=False)
     
     fig = go.Figure()
     
-    colors = {'Neutral': '#A5A5A5', 'Negative': '#FF0000', 'Positive': '#70AD47'}
+    fig.add_trace(go.Bar(
+        y=portal_sentiment.index,
+        x=-portal_sentiment['Negative'],
+        name='Negative',
+        orientation='h',
+        marker=dict(color='#FF0000'),
+        text=((portal_sentiment['Negative']*100).round(1).astype(str) + '%'),
+        textposition='inside',
+        insidetextanchor='middle'
+    ))
     
-    for sentiment in percentages.columns:
-        fig.add_trace(go.Bar(
-            y=percentages.index,
-            x=percentages[sentiment],
-            name=sentiment,
-            orientation='h',
-            marker=dict(
-                color=colors.get(sentiment, 'blue')
-            ),
-            text=percentages[sentiment].round(1).astype(str) + '%',
-            textposition='auto'
-        ))
+    fig.add_trace(go.Bar(
+        y=portal_sentiment.index,
+        x=portal_sentiment['Neutral'],
+        name='Neutral',
+        orientation='h',
+        marker=dict(color='#A5A5A5'),
+        text=((portal_sentiment['Neutral']*100).round(1).astype(str) + '%'),
+        textposition='inside',
+        insidetextanchor='middle'
+    ))
+    
+    fig.add_trace(go.Bar(
+        y=portal_sentiment.index,
+        x=portal_sentiment['Positive'],
+        name='Positive',
+        orientation='h',
+        marker=dict(color='#70AD47'),
+        text=((portal_sentiment['Positive']*100).round(1).astype(str) + '%'),
+        textposition='inside',
+        insidetextanchor='middle'
+    ))
     
     fig.update_layout(
-        barmode='stack',
+        barmode='relative',
         title='Sentiment Distribution by Portal',
-        yaxis={'categoryorder':'total ascending'},
+        yaxis={'title': '', 'categoryorder':'total ascending'},
+        xaxis={'title': '', 'tickformat': '.0%', 'range': [-1, 1]},
         height=400,
-        legend_title_text='Sentiment'
+        legend_title_text='Sentiment',
+        bargap=0.1
     )
     
     return fig
 
-def create_portal_chart(df, date):
-    portal_counts = df['Portal'].value_counts().sort_values(ascending=True)
-    fig = px.bar(portal_counts, x=portal_counts.values, y=portal_counts.index, orientation='h',
-                 title='Articles by Portal', labels={'x': '# of Articles', 'y': 'Portal'})
-    fig.update_layout(yaxis={'categoryorder':'total ascending'})
+def create_portal_chart(df, start_date, end_date):
+    if isinstance(start_date, pd.Timestamp):
+        start_date = start_date.date()
+    if isinstance(end_date, pd.Timestamp):
+        end_date = end_date.date()
+    
+    filtered_df = df[(df['published_date'].dt.date >= start_date) & (df['published_date'].dt.date <= end_date)]
+    portal_counts = filtered_df['portal'].value_counts().reset_index()
+    portal_counts.columns = ['portal', 'count']
+    portal_counts = portal_counts.sort_values('count', ascending=True)
+    
+    fig = px.bar(portal_counts, x='count', y='portal', orientation='h',
+                 title='Articles by Portal')
     fig.update_layout(
+        yaxis={'title': '', 'categoryorder':'total ascending'},
+        xaxis={'title': '# of Articles'},
         height=400,
         margin=dict(l=50, r=50, t=50, b=50)
     )
@@ -922,14 +1035,14 @@ def main():
     # Radio buttons for selecting the view
     col1, col2 = st.columns(2)
     with col1:
-        view = st.radio("Select Statistics", ["Daily", "Monthly", "Compare"], horizontal=True, key="view_selector")
+        view = st.radio("Select Statistics", ["Daily", "Monthly", "Range"], horizontal=True, key="view_selector")
 
     if view == "Daily":
         main_dashboard(df)
     elif view == "Monthly":
         monthly_dashboard(df)
     else:
-        compare_dashboard(df)
+        range_dashboard(df)
 
     st.markdown(create_footer(), unsafe_allow_html=True)
 
