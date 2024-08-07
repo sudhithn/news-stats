@@ -394,7 +394,7 @@ st.markdown("""
 
 # Function to load and process data
 def load_data():
-    df = pd.read_csv('news.csv')
+    df = pd.read_csv('news_unique.csv')
     df['published_date'] = pd.to_datetime(df['published_date'], format='%d-%m-%Y')
     return df
 
@@ -843,7 +843,7 @@ def create_portal_chart(df, start_date, end_date):
 def monthly_dashboard(df):
     col1, col2 = st.columns(2)
     with col1:
-        month_year_options = ["Select Month"] + [f"{calendar.month_name[d.month]} {d.year}" for d in pd.date_range(start=df['published_date'].min(), end=df['published_date'].max(), freq='MS')]
+        month_year_options = ["Select Month"] + [d.strftime("%B %Y") for d in pd.date_range(start=df['published_date'].min(), end=df['published_date'].max(), freq='MS')]
         selected_month_year = st.selectbox("Select Month", month_year_options, key="select_month_year_monthly")
     with col2:
         portals = ['All'] + sorted(df['portal'].unique().tolist())
@@ -855,7 +855,7 @@ def monthly_dashboard(df):
     if selected_month_year != "Select Month":
         month, year = selected_month_year.split()
         month_num = list(calendar.month_name).index(month)
-        start_date = pd.Timestamp(f"{year}-{month_num:02d}-01")
+        start_date = pd.to_datetime(f"01-{datetime.strptime(month, '%B').month:02d}-{year}", format='%d-%m-%Y')
         end_date = start_date + pd.offsets.MonthEnd(0)
         mask = (df['published_date'].dt.date >= start_date.date()) & (df['published_date'].dt.date <= end_date.date())
         filtered_df = df.loc[mask]
