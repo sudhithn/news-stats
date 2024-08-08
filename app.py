@@ -337,12 +337,12 @@ def create_footer():
             <div class="footer-column">
                 <span>Connect with us</span>
                 <div class="social-icons">
-                    <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/5/57/X_logo_2023_%28white%29.png" alt="X (Twitter)"></a>
-                    <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram"></a>
+                    <a href="https://x.com/hindumisia" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/5/57/X_logo_2023_%28white%29.png" alt="X (Twitter)"></a>
+                    <a href="https://www.instagram.com/hindumisia.ai/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram"></a>
                 </div>
                 <div class="phone-social-icons">
-                    <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/5/57/X_logo_2023_%28white%29.png" alt="X (Twitter)"></a>
-                    <a href="#"><img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram"></a>
+                    <a href="https://x.com/hindumisia" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/5/57/X_logo_2023_%28white%29.png" alt="X (Twitter)"></a>
+                    <a href="https://www.instagram.com/hindumisia.ai/" target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram"></a>
                 </div>
             </div>
         </div>
@@ -428,39 +428,57 @@ def create_stacked_sentiment_graph(df, start_date, end_date):
     filtered_df = df[(df['published_date'].dt.date >= start_date) & (df['published_date'].dt.date <= end_date)]
     
     portal_sentiment = filtered_df.groupby('portal')['sentiment_label'].value_counts(normalize=True).unstack(fill_value=0)
+    
+    # Check if the expected columns exist, and provide default values if not
+    if 'Negative' in portal_sentiment.columns:
+        negative_col = portal_sentiment['Negative']
+    else:
+        negative_col = pd.Series(0, index=portal_sentiment.index)
+    
+    if 'Neutral' in portal_sentiment.columns:
+        neutral_col = portal_sentiment['Neutral']
+    else:
+        neutral_col = pd.Series(0, index=portal_sentiment.index)
+    
+    if 'Positive' in portal_sentiment.columns:
+        positive_col = portal_sentiment['Positive']
+    else:
+        positive_col = pd.Series(0, index=portal_sentiment.index)
+    
+    portal_sentiment = portal_sentiment.reindex(['Negative', 'Neutral', 'Positive'], axis=1, fill_value=0)
     portal_sentiment = portal_sentiment.sort_values('Negative', ascending=False)
     
     fig = go.Figure()
     
     fig.add_trace(go.Bar(
         y=portal_sentiment.index,
-        x=-portal_sentiment['Negative'],
+        x=-negative_col,
         name='Negative',
         orientation='h',
         marker=dict(color='#FF0000'),
-        text=((portal_sentiment['Negative']*100).round(1).astype(str) + '%'),
+        text=((negative_col*100).round(1).astype(str) + '%'),
         textposition='inside',
         insidetextanchor='middle'
     ))
     
     fig.add_trace(go.Bar(
         y=portal_sentiment.index,
-        x=portal_sentiment['Neutral'],
+        x=neutral_col,
         name='Neutral',
         orientation='h',
         marker=dict(color='#A5A5A5'),
-        text=((portal_sentiment['Neutral']*100).round(1).astype(str) + '%'),
+        text=((neutral_col*100).round(1).astype(str) + '%'),
         textposition='inside',
         insidetextanchor='middle'
     ))
     
     fig.add_trace(go.Bar(
         y=portal_sentiment.index,
-        x=portal_sentiment['Positive'],
+        x=positive_col,
         name='Positive',
         orientation='h',
         marker=dict(color='#70AD47'),
-        text=((portal_sentiment['Positive']*100).round(1).astype(str) + '%'),
+        text=((positive_col*100).round(1).astype(str) + '%'),
         textposition='inside',
         insidetextanchor='middle'
     ))
@@ -469,12 +487,12 @@ def create_stacked_sentiment_graph(df, start_date, end_date):
         barmode='relative',
         title='Sentiment Distribution by Portal',
         yaxis={'title': '', 'categoryorder':'total ascending'},
-        xaxis={'title': '', 'tickformat': '.0%', 'range': [-1, 1]},
+        xaxis={'title': '', 'tickformat': '', 'range': [-1, 1]},
         height=400,
         legend_title_text='Sentiment',
         bargap=0.1
     )
-    
+
     return fig
 
 # Modify the create_portal_chart function
@@ -501,11 +519,14 @@ def create_portal_chart(df, start_date, end_date):
 
 # Main dashboard function
 def main_dashboard(df):
+    # Get the minimum and maximum dates from the DataFrame
+    min_date = df['published_date'].min().date()
+    max_date = df['published_date'].max().date()
+
     # Date and portal selection in the same row
     col1, col2 = st.columns(2)
     with col1:
-        max_date = df['published_date'].max().date()
-        selected_date = st.date_input("Select a Date", max_value=max_date, value=max_date, format="DD/MM/YYYY")
+        selected_date = st.date_input("Select a Date", min_value=min_date, max_value=max_date, value=max_date, format="DD/MM/YYYY")
     with col2:
         portals = ['All'] + sorted(df['portal'].unique().tolist())
         selected_portal = st.selectbox("Select portal", portals)
@@ -769,39 +790,57 @@ def create_stacked_sentiment_graph(df, start_date, end_date):
     filtered_df = df[(df['published_date'].dt.date >= start_date) & (df['published_date'].dt.date <= end_date)]
     
     portal_sentiment = filtered_df.groupby('portal')['sentiment_label'].value_counts(normalize=True).unstack(fill_value=0)
+    
+    # Check if the expected columns exist, and provide default values if not
+    if 'Negative' in portal_sentiment.columns:
+        negative_col = portal_sentiment['Negative']
+    else:
+        negative_col = pd.Series(0, index=portal_sentiment.index)
+    
+    if 'Neutral' in portal_sentiment.columns:
+        neutral_col = portal_sentiment['Neutral']
+    else:
+        neutral_col = pd.Series(0, index=portal_sentiment.index)
+    
+    if 'Positive' in portal_sentiment.columns:
+        positive_col = portal_sentiment['Positive']
+    else:
+        positive_col = pd.Series(0, index=portal_sentiment.index)
+    
+    portal_sentiment = portal_sentiment.reindex(['Negative', 'Neutral', 'Positive'], axis=1, fill_value=0)
     portal_sentiment = portal_sentiment.sort_values('Negative', ascending=False)
     
     fig = go.Figure()
     
     fig.add_trace(go.Bar(
         y=portal_sentiment.index,
-        x=-portal_sentiment['Negative'],
+        x=-negative_col,
         name='Negative',
         orientation='h',
         marker=dict(color='#FF0000'),
-        text=((portal_sentiment['Negative']*100).round(1).astype(str) + '%'),
+        text=((negative_col*100).round(1).astype(str) + '%'),
         textposition='inside',
         insidetextanchor='middle'
     ))
     
     fig.add_trace(go.Bar(
         y=portal_sentiment.index,
-        x=portal_sentiment['Neutral'],
+        x=neutral_col,
         name='Neutral',
         orientation='h',
         marker=dict(color='#A5A5A5'),
-        text=((portal_sentiment['Neutral']*100).round(1).astype(str) + '%'),
+        text=((neutral_col*100).round(1).astype(str) + '%'),
         textposition='inside',
         insidetextanchor='middle'
     ))
     
     fig.add_trace(go.Bar(
         y=portal_sentiment.index,
-        x=portal_sentiment['Positive'],
+        x=positive_col,
         name='Positive',
         orientation='h',
         marker=dict(color='#70AD47'),
-        text=((portal_sentiment['Positive']*100).round(1).astype(str) + '%'),
+        text=((positive_col*100).round(1).astype(str) + '%'),
         textposition='inside',
         insidetextanchor='middle'
     ))
@@ -810,12 +849,12 @@ def create_stacked_sentiment_graph(df, start_date, end_date):
         barmode='relative',
         title='Sentiment Distribution by Portal',
         yaxis={'title': '', 'categoryorder':'total ascending'},
-        xaxis={'title': '', 'tickformat': '.0%', 'range': [-1, 1]},
+        xaxis={'title': '', 'tickformat': '', 'range': [-1, 1]},
         height=400,
         legend_title_text='Sentiment',
         bargap=0.1
     )
-    
+
     return fig
 
 def create_portal_chart(df, start_date, end_date):
@@ -841,9 +880,13 @@ def create_portal_chart(df, start_date, end_date):
 
 #Monthly dashboard
 def monthly_dashboard(df):
+    # Get the minimum and maximum dates from the DataFrame
+    min_date = df['published_date'].min().date()
+    max_date = df['published_date'].max().date()
+
     col1, col2 = st.columns(2)
     with col1:
-        month_year_options = ["Select Month"] + [d.strftime("%B %Y") for d in pd.date_range(start=df['published_date'].min(), end=df['published_date'].max(), freq='MS')]
+        month_year_options = ["Select Month"] + [d.strftime("%B %Y") for d in pd.date_range(start=min_date, end=max_date, freq='MS')]
         selected_month_year = st.selectbox("Select Month", month_year_options, key="select_month_year_monthly")
     with col2:
         portals = ['All'] + sorted(df['portal'].unique().tolist())
@@ -957,39 +1000,57 @@ def create_stacked_sentiment_graph(df, start_date, end_date):
     filtered_df = df[(df['published_date'].dt.date >= start_date) & (df['published_date'].dt.date <= end_date)]
     
     portal_sentiment = filtered_df.groupby('portal')['sentiment_label'].value_counts(normalize=True).unstack(fill_value=0)
+    
+    # Check if the expected columns exist, and provide default values if not
+    if 'Negative' in portal_sentiment.columns:
+        negative_col = portal_sentiment['Negative']
+    else:
+        negative_col = pd.Series(0, index=portal_sentiment.index)
+    
+    if 'Neutral' in portal_sentiment.columns:
+        neutral_col = portal_sentiment['Neutral']
+    else:
+        neutral_col = pd.Series(0, index=portal_sentiment.index)
+    
+    if 'Positive' in portal_sentiment.columns:
+        positive_col = portal_sentiment['Positive']
+    else:
+        positive_col = pd.Series(0, index=portal_sentiment.index)
+    
+    portal_sentiment = portal_sentiment.reindex(['Negative', 'Neutral', 'Positive'], axis=1, fill_value=0)
     portal_sentiment = portal_sentiment.sort_values('Negative', ascending=False)
     
     fig = go.Figure()
     
     fig.add_trace(go.Bar(
         y=portal_sentiment.index,
-        x=-portal_sentiment['Negative'],
+        x=-negative_col,
         name='Negative',
         orientation='h',
         marker=dict(color='#FF0000'),
-        text=((portal_sentiment['Negative']*100).round(1).astype(str) + '%'),
+        text=((negative_col*100).round(1).astype(str) + '%'),
         textposition='inside',
         insidetextanchor='middle'
     ))
     
     fig.add_trace(go.Bar(
         y=portal_sentiment.index,
-        x=portal_sentiment['Neutral'],
+        x=neutral_col,
         name='Neutral',
         orientation='h',
         marker=dict(color='#A5A5A5'),
-        text=((portal_sentiment['Neutral']*100).round(1).astype(str) + '%'),
+        text=((neutral_col*100).round(1).astype(str) + '%'),
         textposition='inside',
         insidetextanchor='middle'
     ))
     
     fig.add_trace(go.Bar(
         y=portal_sentiment.index,
-        x=portal_sentiment['Positive'],
+        x=positive_col,
         name='Positive',
         orientation='h',
         marker=dict(color='#70AD47'),
-        text=((portal_sentiment['Positive']*100).round(1).astype(str) + '%'),
+        text=((positive_col*100).round(1).astype(str) + '%'),
         textposition='inside',
         insidetextanchor='middle'
     ))
@@ -998,12 +1059,12 @@ def create_stacked_sentiment_graph(df, start_date, end_date):
         barmode='relative',
         title='Sentiment Distribution by Portal',
         yaxis={'title': '', 'categoryorder':'total ascending'},
-        xaxis={'title': '', 'tickformat': '.0%', 'range': [-1, 1]},
+        xaxis={'title': '', 'tickformat': '', 'range': [-1, 1]},
         height=400,
         legend_title_text='Sentiment',
         bargap=0.1
     )
-    
+
     return fig
 
 def create_portal_chart(df, start_date, end_date):
